@@ -17,7 +17,9 @@ int uport=8000;
 
 int main()
 {
+	//signal()
 	signal(SIGPIPE,hangle);
+	
 	int sockfd,efd,ret,count,i,temp,port,cfd;
 	struct epoll_event ev,evs[100];
 	struct sockaddr_in cliaddr;
@@ -27,10 +29,12 @@ int main()
 	HEAD *pack=NULL;
 	pthread_t pth;
 
+	//pthread_create()
 	pthread_create(&pth,NULL,(void *)listen_heart,(void *)&head);
+	//pthread_detach()
 	pthread_detach(pth);
 
-
+	//epoll_create()
 	efd=epoll_create(100);
 	if(efd<0)
 	{
@@ -38,13 +42,15 @@ int main()
 		return -1;
 	}
 
+	//sock_init()
 	sockfd=sock_init();
 	if(sockfd<0)
 	{
 		printf("套节字初始化失败!\n");
 		return -1;
 	}
-
+	
+	//epoll_ctl()
 	ev.events=EPOLLIN;
 	ev.data.fd=sockfd;
 	ret=epoll_ctl(efd,EPOLL_CTL_ADD,sockfd,&ev);
@@ -56,6 +62,7 @@ int main()
 
 	while(1)
 	{
+		//epoll_wait()
 		printf("epoll_wait....\n");
 		count=epoll_wait(efd,evs,100,-1);
 		if(count<0)
@@ -71,6 +78,7 @@ int main()
 			if(temp==sockfd)
 			{
 
+				//accept()
 				printf("accept....\n");
 				cfd=accept(sockfd,(struct sockaddr *)&cliaddr,&clilen);
 				if(cfd<0)
@@ -99,6 +107,7 @@ int main()
 			else
 			{
 				pack=malloc(sizeof(HEAD));
+				//read()
 				ret=read(temp,pack,sizeof(HEAD));
 				if(ret<=0)
 				{
@@ -228,7 +237,10 @@ int sock_init()
 	struct sockaddr_in seraddr;
 	char ip[128];
 	int port;
+
 	get_ip_port(ip,&port);
+
+	//socket()
 	sockfd=socket(AF_INET,SOCK_STREAM,0);
 	if(sockfd<0)
 	{
@@ -236,10 +248,10 @@ int sock_init()
 		return -1;
 	}
 
+	//bind()
 	seraddr.sin_family=AF_INET;
 	seraddr.sin_port=htons(port);
 	inet_pton(AF_INET,ip,&seraddr.sin_addr.s_addr);
-
 	ret=bind(sockfd,(struct sockaddr *)&seraddr,sizeof(struct sockaddr_in));
 	if(ret<0)
 	{
@@ -247,13 +259,16 @@ int sock_init()
 		return -1;
 	}
 
+	//listen()
 	ret=listen(sockfd,5);
 	if(ret<0)
 	{
 		perror("listen");
 		return -1;
 	}
+
 	make_daemon();
+
 	return sockfd;
 }
 

@@ -16,11 +16,14 @@
 
 int main()
 {
+	
+	//signal()
 	signal(SIGPIPE,fun); //定义信号SIGPIPE 
 
 	int i,sockfd,ret,flag=1; 
 	pthread_t pth;
 
+	//sock_init()
 	sockfd=sock_init();  //初始化套节子
 	if(sockfd<0)
 	{
@@ -28,7 +31,9 @@ int main()
 		return -1;
 	}
 
+	//pthread_create()
 	pthread_create(&pth,NULL,(void *)jump_heart,(void *)&sockfd);  //创建线程，用与发送心跳包
+	//pthread_detach()
 	pthread_detach(pth);//线程分离
 
 	while(flag)
@@ -89,8 +94,10 @@ int sock_init()
 	struct sockaddr_in seraddr;
 	char ip[128];
 	int port;
+
 	get_ip_port(ip,&port);//过滤配置文件
 
+	//socket()
 	sockfd=socket(AF_INET,SOCK_STREAM,0);
 	if(sockfd<0)
 	{
@@ -98,6 +105,7 @@ int sock_init()
 		return -1;
 	}
 
+	//connect()
 	seraddr.sin_family=AF_INET;
 	seraddr.sin_port=htons(port);
 	inet_pton(AF_INET,ip,&seraddr.sin_addr.s_addr);
