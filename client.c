@@ -1,14 +1,16 @@
 /*
-   信号包注释:
-
+   信号包type值注释:
+   
+   //指令
    1.注册  2.登录  3.客户端退出
    4.登录退出  5.发送链表   6.更新心跳包
 
+   //反馈信息
    21.用户不存在
    22.密码不正确
    23.登录成功
    24.用户已登录
- */
+*/
 
 
 #include <stdio.h>
@@ -24,7 +26,7 @@ int main()
 	pthread_t pth;
 
 	//sock_init()
-	sockfd=sock_init();  //初始化套节子
+	sockfd=sock_init();  //初始化并链接socket
 	if(sockfd<0)
 	{
 		perror("套节字初始化失败!\n");
@@ -52,30 +54,9 @@ int main()
 
 
 	}
+
 	close(sockfd);//关闭套节字
 	return 0;
-}
-
-
-//发送心跳包
-void *jump_heart(void *p)
-{
-	int fd=*((int *)p);
-	int ret;
-	HEAD *pack=NULL;
-
-	while(1)
-	{
-		pack=malloc(sizeof(HEAD));
-		pack->type=6;
-		sleep(3);
-		ret=write(fd,pack,sizeof(HEAD));
-		if(ret<0)
-		{
-			perror("read");
-			return NULL;
-		}
-	}
 }
 
 
@@ -87,7 +68,7 @@ void fun(int a)
 }
 
 
-//初始化套节字
+//初始化并链接socket
 int sock_init()
 {
 	int sockfd,ret;
@@ -118,6 +99,28 @@ int sock_init()
 
 	return sockfd;
 }
+
+//发送心跳包,每隔三秒让服务端更新心跳包
+void *jump_heart(void *p)
+{
+	int fd=*((int *)p);
+	int ret;
+	HEAD *pack=NULL;
+
+	while(1)
+	{
+		pack=(HEAD *)malloc(sizeof(HEAD));
+		pack->type=6;
+		sleep(3);
+		ret=write(fd,pack,sizeof(HEAD));
+		if(ret<0)
+		{
+			perror("write");
+			return NULL;
+		}
+	}
+}
+
 
 
 //过滤配置文件
