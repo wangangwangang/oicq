@@ -10,20 +10,31 @@
 #include <sys/epoll.h>
 #include <string.h>
 #include <pthread.h>
+
+//用户信息结构
 typedef struct user
 {
 	char name[128];
 	int code;
-}USER;
+}USER,*PUSER;
 
+//udp链接信息包结构
+typedef struct  mes
+{
+  char name[1024];
+  char data[1024];
+}MES;
+
+//tcp链接信息包结构
 typedef struct pack_head
 {
 	unsigned int ver;
 	unsigned int type; 
 	int len;
 	char data[0];
-}HEAD;
+}HEAD,*PHEAD;
 
+//在线用户列表结构
 typedef struct online_node
 {
 	int fd;
@@ -35,14 +46,9 @@ typedef struct online_node
 	struct online_node *next;
 }NODE,*PNODE;
 
+//作为pthread_create的参数传入线程
 typedef struct source
 { 
-  char lname[128];
-  NODE * node;
+  char lname[128];			//当前线程的用户
+  NODE * head;				//在线用户链表头节点指针
 }MAC,*PMAC;
-
-typedef struct  mes
-{
-  char name[1024];
-  char data[1024];
-}MES;

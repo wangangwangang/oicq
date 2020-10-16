@@ -5,8 +5,6 @@ void fun(int a);
 
 int sock_init();
 
-void menu();
-
 void reg_info(int sockfd);
 
 void enter_info(int sockfd);

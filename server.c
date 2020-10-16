@@ -379,7 +379,7 @@ void mysql_init_connect(MYSQL *mysql)
 		return;
 	}
 
-	if(NULL==mysql_real_connect(mysql,"localhost","root","1qaz2wsx","user",0,NULL,0))
+	if(NULL==mysql_real_connect(mysql,"localhost","root","123456","user",0,NULL,0))
 	{
 		printf("连接数据库失败!\n");
 		return ;
