@@ -25,7 +25,7 @@ int main()
 	//signal()		定义信号SIGPIPE的触发动作，取代缺省动作
 	signal(SIGPIPE,fun);
 
-	//sock_init()	初始化并链接socket
+	//sock_init()	初始化tcp客户端套接字，并建立链接
 	sockfd=sock_init(); 
 	if(sockfd<0)
 	{
@@ -74,7 +74,7 @@ void fun(int a)
 }
 
 
-//初始化并链接socket
+//初始化并链接socket,建立tcp客户端
 int sock_init()
 {
 	int sockfd,ret;
@@ -253,6 +253,7 @@ void enter_info(int sockfd)
 	char buff[1024];
 	HEAD pack;
 
+	//编辑发送内容
 	printf("请输入姓名:");
 	scanf("%s",user.name);
 	printf("请输入密码:");
@@ -260,19 +261,22 @@ void enter_info(int sockfd)
 	scanf("%d",&user.code);
 	printf("\033[0m");
 
-	p=malloc(sizeof(HEAD)+sizeof(USER));//申请信息包空间
+	//申请信息包空间
+	p=malloc(sizeof(HEAD)+sizeof(USER));
 	p->ver=0;
 	p->type=2;
 	p->len=sizeof(USER);
 	memcpy(p->data,&user,sizeof(USER));
 
-	ret=write(sockfd,p,sizeof(HEAD)+sizeof(USER));//发送信息包
+	//发送信息包
+	ret=write(sockfd,p,sizeof(HEAD)+sizeof(USER));
 	if(ret<0)
 	{
 		perror("write");
 		return ;
 	}
 
+	//获取反馈信息
 	ret=read(sockfd,&pack,sizeof(HEAD));
 	if(ret<0)
 	{
@@ -360,43 +364,55 @@ void enter_info(int sockfd)
 void accept_link(PNODE *head,int sockfd)
 {
 	int ret;
-	HEAD *p=NULL;
-	p=malloc(sizeof(HEAD));//申请包空间
+	HEAD *pnode=NULL;			//节点指针
 
-	p->ver=0;
-	p->type=5;
-	p->len=0;
-	ret=write(sockfd,p,sizeof(HEAD));//发送信息包
+	//编辑发送内容
+	pnode->ver=0;
+	pnode->type=5;
+	pnode->len=0;
+
+	//申请信息包空间
+	pnode=malloc(sizeof(HEAD));
+
+	//发送信息包
+	ret=write(sockfd,pnode,sizeof(HEAD));
 	if(ret<0)
 	{
 		perror("write");
 		return;
 	}
 
-
-	create_link_cli(head,sockfd);//接受从服务器发来的最新列表
+	//接受从服务器发来的最新链表
+	create_link_cli(head,sockfd);
 	show_link_cli(*head);
+
 	printf("按空格返回!\n");
 	setbuf(stdin,NULL);
 	getchar();
 
-	free(p);
+	free(pnode);
 	return;
 }
 
 
 
-//退出聊天菜单
+//退出聊天菜单，让服务端将在线用户链表节点中的名字该成"未登录!"
 void back_talk(int sockfd)
 {
 	int ret;
-	HEAD *p=NULL;
-	p=malloc(sizeof(HEAD));//申请包空间
+	HEAD *pnode=NULL;		//节点指针
 
-	p->ver=0;
-	p->type=4;
-	p->len=0;
-	ret=write(sockfd,p,sizeof(HEAD));//发送信息包
+	//申请信息包空间
+	pnode=malloc(sizeof(HEAD));
+
+	//编辑发送内容
+	pnode->ver=0;
+	pnode->type=4;
+	pnode->len=0;
+
+
+	//发送信息包
+	ret=write(sockfd,pnode,sizeof(HEAD));
 	if(ret<0)
 	{
 		perror("write");
@@ -404,118 +420,169 @@ void back_talk(int sockfd)
 	}
 
 	sleep(2);
-	free(p);
+	free(pnode);
 	return;
 }
 
 
-//单聊函数
+//单聊函数，建立udp客户端链接
 int  one_one(char *user_name,NODE *head)
 {
-	NODE *p=head;
+	int a;
+	NODE *pn=head;				//移动指针
 	char talk[128];
-	show_link_cli(head);//打印当前接受的最新在线用户列表
 	MES *mes;
-	printf("请输入你想聊天的对象:");
-	setbuf(stdin,NULL);
-	scanf("%s",talk);
-
-	while(p!=NULL)
-	{
-		if(strcmp(p->name,talk)==0)
-		{
-			break;
-		}
-		p=p->next;
-	}
-
 	int sockfd,ret;
 	char buff[128];
 	struct sockaddr_in seraddr;
 
-	sockfd=socket(AF_INET,SOCK_DGRAM,0);//建立UDP连接，初始化套节字
+
+	//打印当前接受的最新在线用户列表
+	show_link_cli(head);				
+
+	//输入聊天对象
+	printf("[cli]:请输入你想聊天的对象:");
+	setbuf(stdin,NULL);
+	scanf("%s",talk);
+
+	//判断用户是否在线,并找到聊天对象对应的节点信息
+	while(pn!=NULL)
+	{
+		if(strcmp(pn->name,talk)==0)
+		{
+			break;
+		}
+		pn=pn->next;
+	}
+	if(pn==NULL)
+	{
+		printf("[cli];%s不在线,按任意键继续\n",talk);
+		setbuf(stdin,NULL);
+		getchar();
+		return 0;
+	}
+
+
+	//socket()
+	sockfd=socket(AF_INET,SOCK_DGRAM,0);
 	if(sockfd<0)
 	{
 		perror("socket");
 		return -1;
 	}
+
+	//编辑upd服务端地址信息
 	seraddr.sin_family=AF_INET;
-	seraddr.sin_port=htons(p->udp_port);
-	inet_pton(AF_INET,p->ip,&seraddr.sin_addr.s_addr);
-	int a;
+	seraddr.sin_port=htons(pn->udp_port);
+	inet_pton(AF_INET,pn->ip,&seraddr.sin_addr.s_addr);
 
 	//发送信息操作
 	do
 	{
-		mes=malloc(sizeof(MES));//申请信息包
+		//申请信息包空间
+		mes=malloc(sizeof(MES));
+
+		//编辑发送内容
+		printf("[cli]:please input massage:");
 		setbuf(stdin,NULL);
-		printf("please input massage:");
 		fgets(buff,128,stdin);
 		strcpy(mes->name,user_name);
 		strcpy(mes->data,buff);
+
+		//sendto()     向udp服务端发送信息
 		ret=sendto(sockfd,mes,sizeof(MES),0,(struct sockaddr *)&seraddr,sizeof(struct sockaddr_in));//发送信息包（包含发送方用户名及信息）
-		printf("send over...\n");
-		setbuf(stdin,NULL);
-		sleep(1);
-		free(mes);
-		printf("是否继续发送(1/0):");
-		scanf("%d",&a);
+		if(ret>=0)
+		{
+			printf("[cli]:发送成功，按任意键继续\n");
+			setbuf(stdin,NULL);
+			getchar();
+
+			printf("[cli]:是否继续发送(1/0):");
+			setbuf(stdin,NULL);
+			scanf("%d",&a);
+		}
+		else
+		{
+			printf("[cli]:发送失败，按任意键继续\n");
+			setbuf(stdin,NULL);
+			getchar();
+
+			break;
+		}
+
 	}while(a==1);
 
+	free(mes);
 	close(sockfd);
+
 	return 0;
 }
 
 
 
-//群聊函数
+//群聊函数,建立udp客户端链接
 int  one_more(char *user_name,NODE *head)
 {
-	NODE *p=head;
+	int flag=1;
+	NODE *pn=head;								//移动指针
 	char talk[128];
 	MES *mes;
-	show_link_cli(head);//打印当前接受的最新在线用户列表
 	int sockfd,ret;
 	char buff[128];
 	struct sockaddr_in seraddr;
-	sockfd=socket(AF_INET,SOCK_DGRAM,0);//建立UDP连接，初始化套节字
+
+	//打印当前接受的最新在线用户列表
+	show_link_cli(head);
+
+	//socket()
+	sockfd=socket(AF_INET,SOCK_DGRAM,0);
 	if(sockfd<0)
 	{
 		perror("socket");
 		return -1;
 	}
-	int flag=1,a;
+
 	while(flag)
 	{ 
-		p=head;
+		//移动指针指向头节点
+		pn=head;
+
+		//申请信息包空间
 		mes=malloc(sizeof(MES));
-		setbuf(stdin,NULL); 
+
+		//编辑发送信息
 		printf("please input massage:");
+		setbuf(stdin,NULL); 
 		fgets(buff,128,stdin);
 		strcpy(mes->name,user_name);
 		strcpy(mes->data,buff);
-		while(p!=NULL)
+
+		//循环遍历链表，将信息依次发给链表中登陆状态的用户
+		while(pn!=NULL)
 		{
 
-			if(strcmp(p->name,"未登录!")!=0)
-
+			if(strcmp(pn->name,"未登录!")!=0)
 			{
+				//编辑当前pn指向的udp服务器的地址信息
 				seraddr.sin_family=AF_INET;
-				seraddr.sin_port=htons(p->udp_port);
-				inet_pton(AF_INET,p->ip,&seraddr.sin_addr.s_addr);
+				seraddr.sin_port=htons(pn->udp_port);
+				inet_pton(AF_INET,pn->ip,&seraddr.sin_addr.s_addr);
 
+				//向当前pn指向的服务器发送信息包
 				ret=sendto(sockfd,mes,sizeof(MES),0,(struct sockaddr *)&seraddr,sizeof(struct sockaddr_in));
 			}
-			p=p->next;
+
+			pn=pn->next;
 		}
 
 		printf("是否继续(1/0):");
 		setbuf(stdin,NULL);
-		scanf("%d",&a);
-		flag=a;
-		free(mes);
+		scanf("%d",&flag);
 	}
+
+	free(mes);
 	close(sockfd);
+
 	return 0;
 }
 
@@ -523,45 +590,52 @@ int  one_more(char *user_name,NODE *head)
 //打印在线用户列表
 void show_link_cli(NODE *head)
 {
-	NODE *p=NULL;
-	p=head;
+	NODE *pn=NULL;			//移动指针
 
+	pn=head;
+
+	//循环便利链表，打印链表各节点信息
 	printf("name:\tfd:\tip:\tport:\tudp_port\t\n\n");
-	while(p!=NULL)
+	while(pn!=NULL)
 	{
-		printf("%s\t%d\t%s\t%d\t%d\t\n",p->name,p->fd,p->ip,p->port,p->udp_port);
-		p=p->next;
+		printf("%s\t%d\t%s\t%d\t%d\t\n",pn->name,pn->fd,pn->ip,pn->port,pn->udp_port);
+		pn=pn->next;
 	}
 
-	return;
 }
 
-//接受来自服务端的在线用户链表
+//接受来自服务端的在线用户链表,注意新生成的链表节点与原链表顺序完全相反,采用的前叉法
 void create_link_cli(PNODE *head,int sockfd)
 {
 	int ret;
-	NODE *pnew=NULL;
-	*head=NULL;
+	NODE *pnode=NULL;		//节点指针
+	*head=NULL;				//头指针
 
 	while(1)
 	{
-		pnew=malloc(sizeof(NODE));
-		ret=read(sockfd,pnew,sizeof(NODE));
+		//申请节点空间
+		pnode=malloc(sizeof(NODE));
+
+		//一个节点一个节点从socket管道中读取链表的内容
+		ret=read(sockfd,pnode,sizeof(NODE));
 		if(ret<0)
 		{
 			perror("read");
 			return ;
 		}
 
-		if(pnew->next==NULL)
+		//头节点前叉法，将节点组成链表
+		if(pnode->next==NULL)
 		{
-			pnew->next=*head;
-			*head=pnew;
+			pnode->next=*head;
+			*head=pnode;
 			break;
 		}
-
-		pnew->next=*head;
-		*head=pnew;
+		else
+		{
+			pnode->next=*head;
+			*head=pnode;
+		}
 	}
 
 	return;
@@ -570,23 +644,24 @@ void create_link_cli(PNODE *head,int sockfd)
 //创建线程,建立udp服务端
 void *resv_info(void *q)
 {
-	int udp_sockfd;	
+	int udp_sockfd;									
 	int ret;
 	char buff[128];
-	MES *mes;
+	MES *mes;										//udp信息包结构
 	struct sockaddr_in udp_seraddr,udp_cliaddr;
 	int udp_clilen=sizeof(struct sockaddr_in);
 	char ip[128];
 	MAC mac=*((MAC *)q);
 	NODE *pn=mac.head;								//在线用户链表移动指针
-	
+
+	//找到当前登陆用户的节点
 	while(pn!=NULL)
 	{
 		if(strcmp(pn->name,mac.lname)==0)
 			break;
 		pn=pn->next;
 	}
-	
+
 	//socket()  udp链接
 	udp_sockfd=socket(AF_INET,SOCK_DGRAM,0);
 	if(udp_sockfd<0)
@@ -594,7 +669,7 @@ void *resv_info(void *q)
 		perror("socket");
 		return NULL;
 	}
-	
+
 	//bind()
 	udp_seraddr.sin_family=AF_INET;
 	udp_seraddr.sin_port=htons(pn->udp_port);
@@ -609,36 +684,44 @@ void *resv_info(void *q)
 
 	while(1)
 	{
-		//recvfrom()
+		//申请接受信息包空间
 		mes=malloc(sizeof(MES));
-		printf("recvfrom...\n");
+
+		//recvfrom()
+		printf("[ser]:recvfrom...");
 		ret=recvfrom(udp_sockfd,mes,sizeof(MES),0,(struct sockaddr *)&udp_cliaddr,&udp_clilen);
-		
-		printf("recvfrom data:[%s]:%s\n",mes->name,mes->data);
+		if(ret>0)
+		{
+			printf("[ser]:recvfrom succeed!!!:[%s]:%s",mes->name,mes->data);
+		}
 
 	}
-
-	return NULL;
 }
 
+
+//客户端tcp断开链接,让服务器将对应节点从在线链表中删除
 void back_info(int sockfd)
 {
-	HEAD *p;
+	HEAD *pnode;						//节点指针
 	int ret;
 
-	p=malloc(sizeof(HEAD));
-	p->ver=0;
-	p->type=3;
-	p->len=0;
+	//申请发送信息包空间
+	pnode=malloc(sizeof(HEAD));
 
-	ret=write(sockfd,p,sizeof(HEAD));
+	//编辑发送信息
+	pnode->ver=0;
+	pnode->type=3;
+	pnode->len=0;
+
+	//向tcp服务端发送信息
+	ret=write(sockfd,pnode,sizeof(HEAD));
 	if(ret<0)
 	{
 		perror("write");
 		return ;
 	}
-	free(p);
-	return ;
+
+	free(pnode);
 }
 
 
