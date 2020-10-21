@@ -366,13 +366,13 @@ void accept_link(PNODE *head,int sockfd)
 	int ret;
 	HEAD *pnode=NULL;			//节点指针
 
+	//申请信息包空间
+	pnode=malloc(sizeof(HEAD));
+	
 	//编辑发送内容
 	pnode->ver=0;
 	pnode->type=5;
 	pnode->len=0;
-
-	//申请信息包空间
-	pnode=malloc(sizeof(HEAD));
 
 	//发送信息包
 	ret=write(sockfd,pnode,sizeof(HEAD));
