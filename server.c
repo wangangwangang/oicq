@@ -18,25 +18,29 @@ int uport=8000;
 
 int main()
 {
-	int sockfd,efd,ret,count,i,temp,port,cfd;
-	struct epoll_event ev,evs[100];
-	struct sockaddr_in cliaddr;
-	int clilen=sizeof(struct sockaddr_in);
-	char ip[128];
-	NODE *head=NULL;
-	HEAD *pack=NULL;
-	pthread_t pth;
+	int sockfd；
+	int efd;					//epoll文件描述符
+	int ret,count,i,temp;
+	int port;					//存放服务器端口大小
+	int cfd;
+	struct epoll_event ev;			//epoll事件队列
+	struct epoll_event evs[100];	//epoll响应事件队列
+	struct sockaddr_in cliaddr;		//客户端地址结构
+	int clilen=sizeof(struct sockaddr_in);	//客户端地址结构大小
+	char ip[128];					//存放服务器ip地址
+	NODE *head=NULL;			//在线用户链表
+	HEAD *pack=NULL;			//
+	pthread_t pth;				//线程标识符
 	
-	//signal()			自定义SIGPIPE的信号相应动作
+	//自定义SIGPIPE的信号相应动作
 	signal(SIGPIPE,hangle);
-	
-	
-	//pthread_create()   创建线程，每秒遍历一次在线用户链表，检查心跳因子是否为0
+		
+	//创建线程，每秒遍历一次在线用户链表，检查心跳因子是否为0
 	pthread_create(&pth,NULL,(void *)listen_heart,(void *)&head);
-	//pthread_detach()
+	//线程回收
 	pthread_detach(pth);
 
-	//sock_init()       初始化socket套接字，建立tcp服务端
+	//初始化socket套接字，建立tcp服务端
 	sockfd=sock_init();
 	if(sockfd<0)
 	{
@@ -44,7 +48,7 @@ int main()
 		return -1;
 	}
 	
-	//epoll_create()	初始化epoll文件描述符
+	//初始化epoll文件描述符
 	efd=epoll_create(100);
 	if(efd<0)
 	{
@@ -52,7 +56,7 @@ int main()
 		return -1;
 	}
 
-	//epoll_ctl()		将sockfd加入epoll队列,socket专门用来监听是否有新的客户端链接进来
+	//将监听套接字加入队列
 	ev.events=EPOLLIN;
 	ev.data.fd=sockfd;
 	ret=epoll_ctl(efd,EPOLL_CTL_ADD,sockfd,&ev);
@@ -64,7 +68,7 @@ int main()
 
 	while(1)
 	{
-		//epoll_wait()		对epoll队列中的文件描述符进行监听
+		//对ev队列中的文件描述符进行监听，将响应队列放入evs
 		printf("epoll_wait....\n");
 		count=epoll_wait(efd,evs,100,-1);
 		if(count<0)
@@ -74,7 +78,7 @@ int main()
 		}
 		printf("epoll_wait over...\n");
 	    
-		//对epoll的有相应的事件队列进行处理
+		//对epoll的有响应的事件队列进行处理
 		for(i=0;i<count;i++)
 		{
 			temp=evs[i].data.fd;
@@ -118,7 +122,7 @@ int main()
 				//申请接受信息包空间
 				pack=malloc(sizeof(HEAD));
 				
-				//read()   读取包头
+				//读取包头
 				ret=read(temp,pack,sizeof(HEAD));
 				if(ret>0)
 				{
@@ -262,15 +266,16 @@ void hangle(int a)
 //初始化socket套接字，建立tcp服务器
 int sock_init()
 {
-	int sockfd,ret;
-	struct sockaddr_in seraddr;
-	char ip[128];
-	int port;
+	int sockfd;						//监听套接字
+	int ret;
+	struct sockaddr_in seraddr;		//服务端地址组结构
+	char ip[128];					//服务端IP
+	int port;						//服务端的port
 	
 	//从配置文件过滤ip port信息
 	get_ip_port(ip,&port);
 
-	//socket()
+	//建立网络套接字
 	sockfd=socket(AF_INET,SOCK_STREAM,0);
 	if(sockfd<0)
 	{
@@ -278,18 +283,19 @@ int sock_init()
 		return -1;
 	}
 
-	//bind()
+	//构建服务端地址组结构
 	seraddr.sin_family=AF_INET;
-	seraddr.sin_port=htons(port);
-	inet_pton(AF_INET,ip,&seraddr.sin_addr.s_addr);
+	seraddr.sin_port=htons(port);           			//主机字节序转换为网络字节序后赋值
+	inet_pton(AF_INET,ip,&seraddr.sin_addr.s_addr);		//主机字节序转换为网络字节序后赋值
+
+	//绑定服务端地址
 	ret=bind(sockfd,(struct sockaddr *)&seraddr,sizeof(struct sockaddr_in));
 	if(ret<0)
 	{
 		perror("bind");
 		return -1;
 	}
-
-	//listen()
+	
 	ret=listen(sockfd,5);
 	if(ret<0)
 	{
@@ -306,10 +312,10 @@ int sock_init()
 int get_ip_port(char *p,int *t)
 {
 	char ip[64];							//存放最终处理完的ip地址
-	int port;								//存放最终处理完的port
+	int port;								//存放最终处理完的port整型变量
 	int i;									//循环变量
 	char temp[128];							//存放fgets()每次从文件中读取的一行数据
-	char port1[128];						//存放初次处理的ip字符串
+	char port1[128];						//存放初次处理的port字符串
 	FILE *fp=NULL;
 	
 	//fopen()    打开文件
@@ -634,8 +640,9 @@ void enter(int temp,PNODE *head)
 //用户注册
 void reg(int temp)
 {
-	USER user;
-	int ret,row_num;
+	USER user;   				//客户端用户信息         
+	int ret;
+	int row_num;				//
 	MYSQL mysql;
 	char sql[128];
 	MYSQL_RES *result;
