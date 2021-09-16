@@ -20,7 +20,8 @@ int main()
 	//signal()
 	signal(SIGPIPE,hangle);
 	
-	int sockfd,efd,ret,count,i,temp,port,cfd;
+	int sockfd,efd;
+	int ret,count,i,temp,port,cfd;
 	struct epoll_event ev,evs[100];
 	struct sockaddr_in cliaddr;
 	int clilen=sizeof(struct sockaddr_in);
