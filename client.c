@@ -320,7 +320,7 @@ void enter_info(int sockfd)
 	mac.head=head;
 
 	//创建线程,建立udp服务端
-	ret=pthread_create(&pth,NULL,resv_info,(void *)&mac);
+	ret=pthread_create(&pth, NULL, resv_info, (void *)&mac);
 	if(ret<0)
 	{
 		perror("pthread_create");
